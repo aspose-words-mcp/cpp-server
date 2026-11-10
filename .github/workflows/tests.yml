@@ -1,0 +1,25 @@
+name: Server verification
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: true
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install ./engine
+      - run: python scripts/verify_registration.py
+      - name: Plugin tests
+        env:
+          PYTHONPATH: plugins/words-cpp/src
+        run: python -m unittest discover -s plugins/words-cpp/tests -v
+      - name: Require Words C++ serving route
+        run: grep -q '/words/cpp/mcp/v1/streamable-http' engine/src/adcs/api/mcp_gateway.py

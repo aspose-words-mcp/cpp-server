@@ -1,0 +1,6 @@
+{
+  "plugins": [
+    "../plugins/words-cpp/plugin.json"
+  ],
+  "compositions": []
+}
