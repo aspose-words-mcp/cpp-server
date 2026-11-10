@@ -1,0 +1,6 @@
+[submodule "engine"]
+	path = engine
+	url = https://github.com/aspose-core-mcp/context-engine.git
+[submodule "plugins/words-cpp"]
+	path = plugins/words-cpp
+	url = https://github.com/aspose-words-mcp/cpp-plugin.git
