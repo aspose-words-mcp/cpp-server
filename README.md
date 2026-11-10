@@ -77,12 +77,31 @@ if ($LASTEXITCODE -ne 0) { throw 'API checkout failed.' }
 $env:PYTHONPATH = Join-Path $PWD 'plugins/words-cpp/src'
 & .\plugins\words-cpp\.venv\Scripts\python.exe -m adcs_words_cpp.gist_examples --source-root engine/sources/documentation-current/en/cpp --cache plugins/words-cpp/sources/gist-examples.json --resolve-history
 if ($LASTEXITCODE -ne 0) { throw 'Gist preparation failed.' }
-.\scripts\ingest.ps1 --source-kind both --timeout 300
-# Continue only after validation succeeds:
-.\scripts\ingest.ps1 --source-kind both --publish --timeout 300
+```
+
+Validate first; this does not publish:
+
+```powershell
+./scripts/ingest.ps1 --source-kind both --timeout 300
+```
+
+After validation succeeds, publish documentation and API references separately:
+
+```powershell
+./scripts/ingest.ps1 --source-kind docs --publish --timeout 300
+./scripts/ingest.ps1 --source-kind apiref --publish --timeout 300
 ```
 
 On Linux, use the same Git commands with `export GIT_LFS_SKIP_SMUDGE=1`, prepare Gists with `PYTHONPATH=plugins/words-cpp/src plugins/words-cpp/.venv/bin/python -m adcs_words_cpp.gist_examples` and the same arguments, then use `sh scripts/ingest.sh`. See the [plugin README](plugins/words-cpp/README.md) for extraction details. Do not change sources or run overlapping ingestion operations during publication.
+
+Linux ingestion commands, after source and Gist preparation:
+
+```sh
+sh scripts/ingest.sh --source-kind both --timeout 300
+# Continue only after validation succeeds:
+sh scripts/ingest.sh --source-kind docs --publish --timeout 300
+sh scripts/ingest.sh --source-kind apiref --publish --timeout 300
+```
 
 Configure a client with the local endpoint:
 
