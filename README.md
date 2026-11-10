@@ -1,138 +1,118 @@
-# Aspose.Words C++ MCP
+# Aspose.Words for C++ MCP Server
 
-Deployment wrapper registering only
-`aspose.words.cpp`. No compositions are registered. The selected engine revision must support the Words C++ route (see publication status below).
+Deploy the Aspose context engine with the Aspose.Words for C++ extraction plugin registered, then connect an MCP-compatible AI client to documentation and API tools.
 
-## GitHub checkout and publication status
+This repository supplies a pinned engine/plugin composition, its catalog, and setup, launch, and ingestion helpers. It does not bundle indexed documentation, provision infrastructure, or supply a hosted endpoint.
 
-```powershell
-git clone https://github.com/aspose-words-mcp/cpp-server.git
-Set-Location cpp-server
-git submodule update --init
-```
+## Project family
 
-The engine is https://github.com/aspose-core-mcp/context-engine and the plugin is
-https://github.com/aspose-words-mcp/cpp-plugin. Do not use recursive submodule
-initialization: the engine's historical corpus submodules are not needed.
+| Repository | Responsibility |
+| --- | --- |
+| [context-engine](https://github.com/aspose-core-mcp/context-engine) | Shared ingestion, indexing, retrieval, and MCP infrastructure |
+| [cpp-plugin](https://github.com/aspose-words-mcp/cpp-plugin) | Words C++ documentation/API extraction and retrieval configuration |
+| [cpp-server](https://github.com/aspose-words-mcp/cpp-server) | Deployment helpers combining pinned engine and plugin versions |
 
-**Publication prerequisite:** the checked-out GitHub engine revision
-`93f76496050c54da99addaf3453e8067c47436e7` does not define the Words C++ route.
-Publish/merge the reviewed C++ serving changes to the shared engine, then pin
-this server to that available GitHub commit before advertising the endpoint.
-The plugin source-URL corrections are also local until published in cpp-plugin;
-commit/push them there and update this server's plugin reference afterwards.
-Do not publish a parent reference to a commit unavailable from its GitHub remote.
-
-The plugin manifest uses documentation from `aspose-words-mcp/docs` (master,
-`en/cpp`) and API references from `aspose-words-mcp/reference` (main,
-`english/cpp`). Public citation URLs continue to use Aspose's documentation sites.
-
-## Components
-
-- `engine/`: pinned submodule from `aspose-context-engine-core`.
-- `plugins/words-cpp/`: pinned submodule from `aspose-plugin-words-cpp`.
-- `config/product-platform-plugins.json`: deployment-specific plugin catalog.
-
-Submodules pin exact commits. Updating an upstream branch does not update this
-deployment automatically. Do not recursively initialize historical engine submodules.
-
-## Windows setup
-
-Requires Git, Python 3.12+, access to both component repositories and internet for
-dependencies. In PowerShell from this repository root:
-
-```powershell
-./scripts/setup.ps1
-```
-
-Use `./scripts/setup.ps1 -Python 'C:/path/to/python.exe'` if the Python launcher
-is unavailable. Setup initializes immediate submodules and separate Python
-environments and verifies worker registration. It does not download corpora or ingest.
-
-## Linux setup
+## Get the server
 
 ```sh
-./scripts/setup.sh
+git clone https://github.com/aspose-words-mcp/cpp-server.git
+cd cpp-server
 ```
 
-## Run the engine
+Setup initializes only the immediate engine and plugin submodules. Do not clone recursively: the engine retains historical corpus submodules that this deployment does not need.
 
-Configure runtime services and credentials as described in `engine/README.md`.
-The helpers set both engine catalog environment variables and run from `engine/`.
+## Setup and verification
+
+Requires Git and Python 3.12 or newer. From the repository root:
 
 ```powershell
-./scripts/run-engine.ps1 -m uvicorn adcs.api.main:app --host 127.0.0.1 --port 8080
-# In another terminal, if using queued ingestion:
-./scripts/run-engine.ps1 -m celery -A adcs.worker.celery_app:celery_app worker --loglevel=info
+.\scripts\setup.ps1
 ```
 
-Linux equivalents use `scripts/run-engine.sh` and `scripts/ingest.sh`.
-Use `/words/cpp/mcp/v1/streamable-http`. Its server-selected scope is
-`product_id=aspose.words`, `language=cpp`; initialization returns
-`aspose-words-cpp-mcp`. The generic endpoint also remains available.
-The inherited .NET-specific endpoint is not the C++ endpoint. Other inherited
-routes remain defined; this wrapper does not implement route filtering.
+Linux:
 
-## Sources, cache and ingestion
+```sh
+sh scripts/setup.sh
+```
 
-The ingestion workspace is `engine/`. Use the URLs/branches/prefixes in the pinned
-plugin's `plugin.json`; resolve source paths against `engine/`. The separate
-sibling plugin checkout is not used automatically by this deployment.
+Setup installs the engine into `.venv`, creates a separate plugin interpreter, and verifies registration, retrieval-profile loading, and fixture extraction. It does not download corpora or publish content. Preserve uncommitted submodule edits before running setup. See [registration details](REGISTRATION.md) for component revisions and additional tests.
 
-For the registered C++ manifest, sources are `engine/sources/documentation-current` (prefix
-`en/cpp`) and `engine/sources/api-reference` (prefix `english/cpp`). Follow the plugin
-README's Git commands with those destination paths. Do not download sources into
-the engine's tracked historical source submodules.
+## Run the server
 
-Prepare Gists from the deployment root after cloning documentation:
+Configure runtime stores, credentials, and embeddings as described in [the engine README](engine/README.md). Then:
 
 ```powershell
+.\scripts\run-engine.ps1 -m uvicorn adcs.api.main:app --host 127.0.0.1 --port 8080
+```
+
+Linux:
+
+```sh
+sh scripts/run-engine.sh -m uvicorn adcs.api.main:app --host 127.0.0.1 --port 8080
+```
+
+For queued ingestion, run the worker in another terminal:
+
+```sh
+sh scripts/run-engine.sh -m celery -A adcs.worker.celery_app:celery_app worker --loglevel=info
+```
+
+On Windows use `scripts/run-engine.ps1` with the same arguments. Always use the wrapper: it selects this deployment's product and retrieval catalogs and runs from `engine/`.
+
+## Populate content and connect
+
+Clone the sources into the engine workspace, from the server root (only if destinations do not exist):
+
+```powershell
+$env:GIT_LFS_SKIP_SMUDGE = '1'
+New-Item -ItemType Directory -Force engine/sources | Out-Null
+git clone --depth 1 --filter=blob:none --sparse --branch master https://github.com/aspose-words-mcp/docs.git engine/sources/documentation-current
+if ($LASTEXITCODE -ne 0) { throw 'Documentation clone failed.' }
+git -C engine/sources/documentation-current sparse-checkout set en/cpp
+if ($LASTEXITCODE -ne 0) { throw 'Documentation checkout failed.' }
+git clone --depth 1 --filter=blob:none --sparse --branch main https://github.com/aspose-words-mcp/reference.git engine/sources/api-reference
+if ($LASTEXITCODE -ne 0) { throw 'API clone failed.' }
+git -C engine/sources/api-reference sparse-checkout set english/cpp
+if ($LASTEXITCODE -ne 0) { throw 'API checkout failed.' }
 $env:PYTHONPATH = Join-Path $PWD 'plugins/words-cpp/src'
-& ./plugins/words-cpp/.venv/Scripts/python.exe -m adcs_words_cpp.gist_examples --source-root engine/sources/documentation-current/en/cpp --cache plugins/words-cpp/sources/gist-examples.json --resolve-history
+& .\plugins\words-cpp\.venv\Scripts\python.exe -m adcs_words_cpp.gist_examples --source-root engine/sources/documentation-current/en/cpp --cache plugins/words-cpp/sources/gist-examples.json --resolve-history
 if ($LASTEXITCODE -ne 0) { throw 'Gist preparation failed.' }
+.\scripts\ingest.ps1 --source-kind both --timeout 300
+# Continue only after validation succeeds:
+.\scripts\ingest.ps1 --source-kind both --publish --timeout 300
 ```
 
-Validate first; this can write local operation metadata but does not publish:
+On Linux, use the same Git commands with `export GIT_LFS_SKIP_SMUDGE=1`, prepare Gists with `PYTHONPATH=plugins/words-cpp/src plugins/words-cpp/.venv/bin/python -m adcs_words_cpp.gist_examples` and the same arguments, then use `sh scripts/ingest.sh`. See the [plugin README](plugins/words-cpp/README.md) for extraction details. Do not change sources or run overlapping ingestion operations during publication.
 
-```powershell
-./scripts/ingest.ps1 --source-kind both --timeout 300
+Configure a client with the local endpoint:
+
+```text
+http://127.0.0.1:8080/words/cpp/mcp/v1/streamable-http
 ```
 
-With stores/embeddings configured, publish explicitly:
+For a hosted deployment, substitute your reachable HTTPS host. Localhost refers to the client's own machine; remote clients need a reachable deployment or tunnel. Initialization reports `aspose-words-cpp-mcp`; successful initialization does not prove ingestion or retrieval quality.
 
-```powershell
-./scripts/ingest.ps1 --source-kind docs --publish --timeout 300
-./scripts/ingest.ps1 --source-kind apiref --publish --timeout 300
-```
+## Scope
 
-Keep source checkouts clean and retain revisions. Do not run overlapping ingestion.
-Runtime data and secrets are not repository content. This wrapper does not provision
-Docker or databases. CI validates registration and runs standalone plugin tests;
-GitHub Actions validates registration and standalone plugin tests using top-level submodules only.
+Only `aspose.words.cpp` is registered; the catalog has no compositions. The Words C++ route fixes the product and language. The shared engine also defines generic, TeX, Total, and .NET routes; this repository does not remove them. Registration does not populate indexes or grant access to source repositories.
 
+## Files
 
-## Dedicated C++ endpoint verification
+| Path | Purpose |
+| --- | --- |
+| `engine/` | Pinned context-engine submodule |
+| `plugins/words-cpp/` | Pinned Words C++ plugin submodule |
+| `config/product-platform-plugins.json` | Deployment registration catalog |
+| `scripts/setup.*` | Initialize components and verify registration |
+| `scripts/run-engine.*` | Launch engine commands with deployment catalogs |
+| `scripts/ingest.*` | Words ingestion with explicit workspace and interpreter |
+| `scripts/verify_registration.py` | Fixture-based integration check |
+| `REGISTRATION.md` | Component revisions, checks and publication order |
 
-After pinning a GitHub engine commit with Words C++ serving support, the run
-helpers select this repository's plugin catalog.
+Submodules pin exact commits. Updating an upstream branch does not update this deployment automatically. Publish component commits first, then update the parent references and rerun verification.
 
-After setup, start the API with configured local runtime settings:
+## Validation and licenses
 
-```powershell
-./scripts/run-engine.ps1 -m uvicorn adcs.api.main:app --host 127.0.0.1 --port 8080
-```
+GitHub Actions checks shell syntax, catalog JSON and component URL placeholders, runs setup and registration, runs plugin regressions, and checks that the Words C++ route is present. It does not deploy services or publish content. Local test results and their limitations are documented in [REGISTRATION.md](REGISTRATION.md).
 
-In another terminal:
-
-```powershell
-$body = @{ jsonrpc = '2.0'; id = 1; method = 'initialize' } | ConvertTo-Json
-$response = Invoke-RestMethod -Method Post -Uri 'http://127.0.0.1:8080/words/cpp/mcp/v1/streamable-http' -ContentType 'application/json' -Body $body
-$response.result.serverInfo
-if ($response.result.serverInfo.name -ne 'aspose-words-cpp-mcp') { throw 'Unexpected MCP identity.' }
-```
-
-Initialization confirms serving registration, not corpus ingestion or search quality.
-Re-pin the engine submodule to the reviewed GitHub commit after the C++ serving
-branch is merged. If merging rewrites either submodule commit, re-pin that pointer
-before publishing this parent deployment commit. See `REGISTRATION.md` for the
-local verification record, full patches, and manual publication order.
+Engine and plugin licenses and notices are supplied by their respective pinned repositories. Preserve them when distributing those components. A root deployment license has not yet been added; do not assume the component licenses automatically license this repository's own files.
